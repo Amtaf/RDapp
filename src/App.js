@@ -8,12 +8,19 @@ export default function App() {
 const [currAccount,setCurrentAccount] = React.useState("")
 const[allWaves,setAllWaves]=React.useState([])
 const[projMessage,setProjMessage]=React.useState("")
+const[totalWaves,setTotalWaves]=React.useState(0)
 
-const contractAddress = "0xe1458dF942a63292d0524975b566deDE9b5D9265"
+const contractAddress = "0x2E9b70dF5CDfBE6504700d975098d7532Df9DCE8"
 const contractABI = abi.abi;
 
 async function getAllWaves(){
-  const provider=new ethers.providers.Web3Provider(window.ethereum)
+
+ try{
+  const {ethereum}=window;
+
+ if(window.ethereum){
+
+  const provider=new ethers.providers.Web3Provider(ethereum)
   const signer = provider.getSigner()
   const wavePortalContract = new ethers.Contract(contractAddress,contractABI,signer);
 
@@ -25,14 +32,28 @@ async function getAllWaves(){
       address: wave.addres,
       timestamp: new Date(wave.timestamp * 1000),
       message:wave.message
-    })
-  })
+    });
+  });
 
-  setAllWaves(wavesCleaned)
+  setAllWaves(wavesCleaned);
+   wavePortalContract.on("NewWave", (from, timestamp, message) => {
+          console.log("NewWave", from, timestamp, message);
 
-
-}
+          setAllWaves(prevState => [...prevState, {
+            address: from,
+            timestamp: new Date(timestamp * 1000),
+            message: message
+          }]);
+        });
+      } else {
+        console.log("Ethereum object doesn't exist!")
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
   const checkIfWalletIsConnected = () => {
+    try{
 
   const {ethereum} = window;
     if (!ethereum){
@@ -52,6 +73,9 @@ async function getAllWaves(){
         console.log("No authorized account found")
       }
     })
+    } catch (error) {
+      console.log(error);
+    }
     }
 
     const connectWallet = ()=>{
@@ -66,6 +90,10 @@ async function getAllWaves(){
     }
 
     const wave = async () =>{
+      try{
+        const{ethereum} = window;
+        if(ethereum){
+
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner()
       const waveportalContract = new ethers.Contract(contractAddress,contractABI, signer);
@@ -73,13 +101,21 @@ async function getAllWaves(){
       let count = await waveportalContract.getTotalWaves()
       console.log("Retrieved total wave count...",count.toNumber())
 
-      const waveTxn = await waveportalContract.wave(projMessage, { gasLimit: 300000 })
-      console.log("Mining...",waveTxn.hash)
+      const waveTxn = await waveportalContract.wave(projMessage,{gasLimit : 300000})
+      alert("Mining...",waveTxn.hash)
       await waveTxn.wait()
-      console.log("Mined--",waveTxn.hash)
+      alert("Mined--",waveTxn.hash)
 
       count = await waveportalContract.getTotalWaves()
       console.log("Retreived total wave count...",count.toNumber())
+      setTotalWaves(count.toNumber())
+        }else {
+        console.log("Ethereum object doesn't exist!");
+      }
+
+      } catch (error) {
+      console.log(error);
+    }
     }
 
 
@@ -88,13 +124,7 @@ async function getAllWaves(){
       
     },[])
 
-    React.useEffect(()=>{
-      if(currAccount){
-        getAllWaves();
-      }
-
-    },[currAccount])
-  
+   
   return (
     <div className="mainContainer">
 
@@ -104,8 +134,12 @@ async function getAllWaves(){
         </div>
 
         <div className="bio">
-        I am Fatma and I worked on Dapps,This is aplatform where innovators meet and collaborate. Send me a wave and write me a message regarding the project you are working on.
+        I am Fatma and I worked on Dapps,This is a platform where innovators meet and collaborate. Send me a wave and write me a message regarding the project you are working on.
+        <p><ul style={{color:"Yellow"}}>🏆 The winning project will be selected by the smart contract and recieve an award of 0.0001 ETh</ul>
+        <li>⚠ Ensure you have Metamask browser extension</li>
+        <li>⚠ Ensure you have some test Eth</li></p>
         </div>
+        <h1>{totalWaves} Projects onChain</h1>
         <div>
         {currAccount ? (
         <textarea name="project" placeholder="Write me a message" value={projMessage} onChange={e=>setProjMessage(e.target.value)} rows="4" cols="77" style={{color:"black", backgroundColor:"white"}}/>
@@ -114,7 +148,7 @@ async function getAllWaves(){
         }
         </div>
 
-        <button className="waveButton" onClick={wave} style={{}}>
+        <button className="waveButton" onClick={wave}>
           Wave at Me
         </button>
         {currAccount ? null :(
@@ -124,7 +158,7 @@ async function getAllWaves(){
         )}
         {allWaves.map((wave,index)=>{
           return(
-            <div style={{backgroundColor: "OldLace", marginTop: "16px", padding: "8px"}}>
+            <div style={{backgroundColor: "grey", marginTop: "16px", padding: "8px"}}>
             <div>Address:{wave.address}</div>
             <div>Time: {wave.timestamp.toString()}</div>
             <div>Message:{wave.message}</div>
